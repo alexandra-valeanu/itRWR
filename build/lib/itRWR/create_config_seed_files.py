@@ -1,4 +1,61 @@
 import glob
+from typing import Optional
+
+
+def compute_layer_tau(layers: list, priorities: Optional[dict] = None) -> list:
+    """Compute tau weights for multiplex layers based on optional priorities.
+    
+    If no priorities are provided, all layers receive equal weight (uniform distribution) as before.
+    If priorities are provided, weights are normalized to sum to 1.0 for the layers present.
+    
+    Args:
+        layers: List of layer filenames (e.g., ['PPI.tsv'])
+        priorities: Optional dict mapping layer names to relative priority values.
+                   Keys can be with or without '.tsv' extension.
+                   Example: {'PPI': 3, 'Complexes': 3, 'Pathways': 2, 'Coexpression': 1}
+                   Higher values = higher priority/weight in the random walk.
+                   Layers not in the dict get priority 1 (lowest).
+    
+    Returns:
+        List of tau values (summing to 1.0) in the same order as input layers.
+    
+    Example:
+        >>> compute_layer_tau(['PPI.tsv', 'Coexpression.tsv'])
+        [0.5, 0.5]  # uniform when no priorities
+        
+        >>> compute_layer_tau(['PPI.tsv', 'Coexpression.tsv'], {'PPI': 3, 'Coexpression': 1})
+        [0.75, 0.25]  # weighted by priorities
+    """
+    size = len(layers)
+    if size == 0:
+        return []
+    
+    # No priorities specified -> uniform distribution
+    if priorities is None:
+        return [1.0 / size] * size
+    
+    # Normalize priority keys (remove .tsv if present for matching)
+    normalized_priorities = {}
+    for key, value in priorities.items():
+        clean_key = key.replace('.tsv', '')
+        normalized_priorities[clean_key] = value
+    
+    # Compute raw weights for each layer
+    raw_weights = []
+    for layer in layers:
+        layer_name = layer.replace('.tsv', '')
+        # Default priority is 1 for layers not in the priorities dict
+        weight = normalized_priorities.get(layer_name, 1)
+        raw_weights.append(weight)
+    
+    # Normalize to sum to 1.0
+    total = sum(raw_weights)
+    if total == 0:
+        return [1.0 / size] * size
+    
+    tau = [w / total for w in raw_weights]
+    return tau
+
 
 def build_seeds_file(orpha_seeds: str) -> dict:
     """Function to build seeds file from an input
@@ -42,15 +99,18 @@ def build_seeds_file(orpha_seeds: str) -> dict:
         return dico_seeds
 
 
-def build_config_files(path: str, dico_diseases_seeds: dict) -> None:
-    """Function to build configuration files
-    for each disease
+def build_config_files(path: str, dico_diseases_seeds: dict, layer_priority: Optional[dict] = None) -> None:
+    """Function to build configuration files for each disease.
 
     Args:
-        path (str) : path of the working directory
-        dico_diseases_seeds (dict): dictionary containing
-        disease ORPHANET identifiers and their associated
-        seeds
+        path (str): path of the working directory
+        dico_diseases_seeds (dict): dictionary containing disease ORPHANET 
+            identifiers and their associated seeds
+        layer_priority (dict, optional): dictionary mapping layer names to 
+            relative priority values. Keys can be with or without '.tsv' extension.
+            Example: {'PPI': 3, 'Complexes': 3, 'Pathways': 2, 'Coexpression': 1}
+            Higher values = higher weight in the random walk.
+            If None, all layers have equal weight.
 
     Return:
         None
@@ -58,12 +118,15 @@ def build_config_files(path: str, dico_diseases_seeds: dict) -> None:
     layers = glob.glob(path + '/multiplex/1/*')
     size = len(layers)
     layers = sorted([layers[i].split('/multiplex/1/')[1] for i in range(size)])
+
+    # Compute tau values using the prioritisation function
+    tau = compute_layer_tau(layers, layer_priority)
+
     for disease in dico_diseases_seeds:
         file = open(path + f'/config_{disease}.yml', 'w')
         r = 0.7
         delta = 0.5
         eta = 1.0
-        tau = [1/5,1/5,1/5,1/5,1/5]
 
         file.write(f'seed: seeds_{disease}.txt' + '\n')
         file.write('self_loops: 0' + '\n')

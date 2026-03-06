@@ -89,6 +89,6 @@ setup(
     packages=find_packages(),
     package_dir={'itRWR': 'itRWR'},
     package_data={'itRWR': data_example_file_list},
-    install_requires=['networkx==2.5', 'numpy', 'pandas', 'psutil', 'pyyaml', 'scipy', 'multixrank'],
+    install_requires=['networkx>=2.8', 'numpy', 'pandas', 'psutil', 'pyyaml', 'scipy', 'multixrank'],
     entry_points={},
 )
