@@ -59,6 +59,67 @@ After having checked and/or modified the script parameters in accordance with yo
 
 This will create a seed file, a configuration file, and output folders needed for each community. For instance, the community identified for a given disease will be contained in the file ``seeds_ID.txt`` (In this example, ID is the ORPHANET identifier of the disease) inside the corresponding output folder.
 
+--------------------------
+Layer Prioritisation
+--------------------------
+
+By default, all layers in the multiplex network are weighted equally in the random walk. You can prioritize specific layers by passing a ``layer_priority`` dictionary to the ``community_identification`` function. Higher values correspond to higher weights in the random walk.
+
+**Basic usage (uniform weights):**
+
+.. code-block:: python
+
+    # All layers have equal weight
+    community_identification(path, list_disease, num_iteration)
+
+**With layer prioritisation:**
+
+.. code-block:: python
+
+    # Define priorities: higher values = higher weight in the random walk
+    layer_priority = {
+        'PPI': 3,           # High priority
+        'Complexes': 3,     # Same priority as PPI
+        'Pathways': 2,      # Medium priority
+        'Coexpression': 1,  # Low priority
+        'Diseases_involvement': 1,  # Low priority
+    }
+    
+    community_identification(path, list_disease, num_iteration, layer_priority)
+
+**How it works:**
+
+- Priorities are relative values that get normalized to sum to 1.0
+- Example: ``{PPI: 3, Complexes: 3, Pathways: 2, Coexpression: 1, Diseases_involvement: 1}`` → tau = ``[0.1, 0.3, 0.1, 0.3, 0.2]``
+- Layer names can be specified with or without the ``.tsv`` extension
+- Layers not included in the dictionary receive a default priority of 1
+- If some layers are not present in your multiplex network, they are simply ignored
+
+**Usage:**
+
+.. code-block:: python
+    
+    from itRWR import community_identification 
+    import os
+
+    path = os.path.dirname(os.path.realpath(__file__))
+    path = path + '/'
+    os.chdir(path)
+
+    list_disease = "orpha_codes_PA.txt"
+    num_iteration = 10
+
+    # Optional: Define layer priority for the random walk
+    layer_priority = {
+        'PPI': 3, 
+        'Complexes': 3,
+        'Pathways': 2,
+        'Coexpression': 1,
+        'Diseases_involvement': 1,
+    }
+
+    community_identification(path, list_disease, num_iteration, layer_priority)
+
 -----------------
 Example
 -----------------
